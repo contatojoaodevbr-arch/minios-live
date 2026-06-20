@@ -53,6 +53,13 @@ jobs:
       run: |
         sudo ./minios-live -
 
+    - name: Fix Permissions
+      if: always()
+      run: |
+        # Libera a permissão de todas as pastas e arquivos para o uploader do GitHub conseguir ler
+        sudo chown -R runner:docker .
+        sudo chmod -R 755 .
+
     - name: Upload AirOS ISO
       uses: actions/upload-artifact@v4
       with:
