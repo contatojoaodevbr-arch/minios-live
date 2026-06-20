@@ -53,14 +53,22 @@ jobs:
       run: |
         sudo ./minios-live -
 
-    - name: Clean Build Folder
+    - name: Secure and Isolate ISO File
       if: always()
       run: |
-        # Deleta a pasta temporária build com sudo para não dar erro de permissão no upload
+        # Cria uma pasta exclusiva e segura para o upload fora da estrutura do MiniOS
+        mkdir -p target_iso/
+        
+        # Procura por qualquer arquivo .iso gerado, muda a permissão e move para a pasta segura
+        sudo find . -name "*.iso" -exec chown runner:docker {} \;
+        sudo find . -name "*.iso" -exec chmod 644 {} \;
+        sudo find . -name "*.iso" -exec mv {} target_iso/ \;
+        
+        # Agora sim apaga a pasta temporária "build" que causava os erros de permissão
         sudo rm -rf build/
 
     - name: Upload AirOS ISO
       uses: actions/upload-artifact@v4
       with:
         name: AirOS-GNOME-Custom
-        path: "*.iso"
+        path: target_iso/*.iso
