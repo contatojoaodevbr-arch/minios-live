@@ -11,9 +11,13 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
+    - name: Install Host Prerequisites
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y debootstrap xorriso mtools squashfs-tools binutils rsync grsync xz-utils lz4 zstd gpg bc
+
     - name: Configure AirOS and GNOME
       run: |
-        # Altera as configurações para GNOME e muda o nome para AirOS nos arquivos possíveis
         find . -name "build.conf" -o -name "minios.conf" | while read config_file; do
           sed -i 's/MINIOS_VARIANT=.*/MINIOS_VARIANT="gnome"/' "$config_file" 2>/dev/null || true
           sed -i 's/GRAPHIC_INTERFACE=.*/GRAPHIC_INTERFACE="gnome"/' "$config_file" 2>/dev/null || true
@@ -37,7 +41,7 @@ jobs:
         echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" > /etc/apt/sources.list.d/vscode.list
         rm -f packages.microsoft.gpg
         
-        # Instalação dos apps desejados (O Firefox já vem por padrão no GNOME)
+        # Instalação dos apps desejados
         apt-get update
         apt-get install -y brave-browser code vlc
         CHROOT
