@@ -1,0 +1,54 @@
+name: Build AirOS ISO
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Configure AirOS and GNOME
+      run: |
+        # Altera as configurações para GNOME e muda o nome para AirOS nos arquivos possíveis
+        find . -name "build.conf" -o -name "minios.conf" | while read config_file; do
+          sed -i 's/MINIOS_VARIANT=.*/MINIOS_VARIANT="gnome"/' "$config_file" 2>/dev/null || true
+          sed -i 's/GRAPHIC_INTERFACE=.*/GRAPHIC_INTERFACE="gnome"/' "$config_file" 2>/dev/null || true
+          sed -i 's/LIVE_NAME=.*/LIVE_NAME="AirOS"/' "$config_file" 2>/dev/null || true
+        done
+
+    - name: Inject Extra Apps (Brave, VS Code, VLC)
+      run: |
+        mkdir -p linux-live/hooks
+        cat << 'CHROOT' > linux-live/hooks/01-install-extra-apps.chroot
+        #!/bin/bash
+        apt-get update && apt-get install -y curl gpg wget software-properties-common
+        
+        # Repositório do Brave
+        curl -fsS https://dl.brave.com/brave-core.asc | gpg --dearmor -o /usr/share/keyrings/brave-browser-archive-keyring.gpg
+        echo "deb [signed-by=/usr/share/keyrings/brave-browser-archive-keyring.gpg] https://dl.brave.com/ stable main" > /etc/apt/sources.list.d/brave-browser.list
+        
+        # Repositório do VS Code
+        wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > packages.microsoft.gpg
+        install -D -o root -g root -m 644 packages.microsoft.gpg /etc/apt/keyrings/packages.microsoft.gpg
+        echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" > /etc/apt/sources.list.d/vscode.list
+        rm -f packages.microsoft.gpg
+        
+        # Instalação dos apps desejados (O Firefox já vem por padrão no GNOME)
+        apt-get update
+        apt-get install -y brave-browser code vlc
+        CHROOT
+        chmod +x linux-live/hooks/01-install-extra-apps.chroot
+
+    - name: Build ISO
+      run: |
+        sudo ./minios-live -
+
+    - name: Upload AirOS ISO
+      uses: actions/upload-artifact@v4
+      with:
+        name: AirOS-GNOME-Custom
+        path: "*.iso"
